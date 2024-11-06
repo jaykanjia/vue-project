@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import IconSearch from '../icons/IconSearch.vue'
-
-interface WeatherData {
-  weather: { icon: string }[]
-  main: { temp: number }
-  name: string
-}
+import IconSearch from '@/components/icons/IconSearch.vue'
+import type { WeatherData } from '@/types/glogal'
+import ErrorComponent from '@/components/weather/ErrorComponent.vue'
+import LoadingComponent from '@/components/weather/LoadingComponent.vue'
+import WeatherComponent from '@/components/weather/WeatherData.vue'
 
 const search = ref<string | null>(null)
 const weatherData = ref<WeatherData | null>(null)
@@ -45,6 +43,7 @@ async function handleSearch() {
   console.log('search', search.value)
 
   isLoading.value = true
+  weatherData.value = null
   error.value = null
   try {
     const data = await fetchWeatherData(search.value, isMetric.value)
@@ -64,6 +63,7 @@ async function toggleUnit() {
   if (!search.value) return
 
   isLoading.value = true
+  weatherData.value = null
   error.value = null
   try {
     const data = await fetchWeatherData(search.value, isMetric.value)
@@ -103,25 +103,13 @@ async function toggleUnit() {
         <span>{{ isMetric ? 'Metric' : 'Standard' }}</span>
       </div>
     </div>
-    <div v-show="weatherData" class="weather-content">
-      <div class="main-weather-info">
-        <img
-          alt="weather condition image"
-          class="weather-img"
-          :src="`https://openweathermap.org/img/wn/${weatherData?.weather[0]?.icon}@2x.png`"
-        />
-        <div>
-          <h3 class="weather-heading">{{ weatherData?.name }}</h3>
-          <span class="weather-temp"
-            >{{ weatherData?.main?.temp }} {{ isMetric ? '°C' : 'F' }}</span
-          >
-        </div>
-      </div>
-      <pre>{{ JSON.stringify(weatherData, undefined, 2) }}</pre>
-    </div>
-    <div v-show="error">
-      <pre>{{ JSON.stringify(error, undefined, 2) }}</pre>
-    </div>
+    <LoadingComponent v-if="isLoading" />
+    <WeatherComponent
+      v-if="weatherData"
+      :weatherData="weatherData"
+      :isMetric="isMetric"
+    />
+    <ErrorComponent v-if="error" :error="error" />
   </div>
 </template>
 
@@ -129,8 +117,7 @@ async function toggleUnit() {
 .weather-card {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  height: 100%;
+  height: 95dvh;
   max-height: 500px;
   max-width: 400px;
   margin-inline: auto;
@@ -139,13 +126,17 @@ async function toggleUnit() {
   overflow: scroll;
 }
 .weather-card > * {
-  padding: 20px 20px 10px 20px;
+  padding: 20px 20px 30px 20px;
 }
 .form-container {
   z-index: 50;
   position: sticky;
   top: 0px;
-  background: linear-gradient(to bottom, var(--color-background), transparent);
+  background: linear-gradient(
+    to bottom,
+    var(--color-background) 80%,
+    transparent 100%
+  );
 }
 .search-container {
   display: flex;
@@ -187,28 +178,6 @@ input:focus {
   background-color: var(--color-border-hover);
   border-color: var(--color-primary);
 }
-.weather-content {
-  padding-top: 0px;
-}
-.main-weather-info {
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
-  align-items: center;
-}
-.main-weather-info > * {
-  flex-basis: 50%;
-}
-.weather-heading {
-  font-size: 32px;
-  font-weight: bold;
-}
-.weather-img {
-  width: 100%;
-  aspect-ratio: 1/1;
-  object-fit: contain;
-}
-
 .toggle-container {
   display: flex;
   align-items: center;
@@ -270,5 +239,10 @@ input:checked + .slider:before {
 
 .hidden-btn {
   visibility: hidden;
+}
+
+.weather-temp {
+  font-size: 22px;
+  font-weight: bold;
 }
 </style>

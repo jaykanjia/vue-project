@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
-import Header from './components/MainHeader.vue'
-import WeatherCard from './components/weather/WeatherCard.vue'
+import HelloWorld from '@/components/HelloWorld.vue'
+import Header from '@/components/MainHeader.vue'
+import WeatherCard from '@/components/weather/WeatherCard.vue'
 </script>
 
 <template>
