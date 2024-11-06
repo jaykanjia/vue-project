@@ -53,17 +53,6 @@ function formatDateToDDMMYYYY(utcTimestamp: number | undefined): string | null {
 </template>
 
 <style scoped>
-.error-container {
-  display: flex;
-  flex: 1;
-  place-items: center;
-}
-.error-container > p {
-  color: red;
-}
-</style>
-
-<style>
 .weather-content {
   padding-top: 0px !important;
   display: grid;

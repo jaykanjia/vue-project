@@ -1,17 +1,37 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import IconSearch from '@/components/icons/IconSearch.vue'
-import type { WeatherData } from '@/types/glogal'
+import type { CityGeocodingData, WeatherData } from '@/types/glogal'
 import ErrorComponent from '@/components/weather/ErrorComponent.vue'
 import LoadingComponent from '@/components/weather/LoadingComponent.vue'
 import WeatherComponent from '@/components/weather/WeatherData.vue'
+import EmptyComponent from '@/components/weather/EmptyComponent.vue'
 
 const search = ref<string | null>(null)
+const cities = ref<CityGeocodingData[] | null>(null)
 const weatherData = ref<WeatherData | null>(null)
 const error = ref<string | null>(null)
 const isLoading = ref<boolean>(false)
 
 const isMetric = ref<boolean>(false)
+
+const debounceTimeout = ref<number | null>(null)
+
+watch(search, newValue => {
+  cities.value = null
+
+  if (!newValue || newValue.length < 3) return
+
+  if (debounceTimeout.value) {
+    clearTimeout(debounceTimeout.value) // Clear the previous timeout
+  }
+  debounceTimeout.value = window.setTimeout(async () => {
+    // Use window.setTimeout
+    console.log('Search value changed:', newValue) // Log after debounce
+    const data = await fetchCityData(newValue)
+    cities.value = data
+  }, 300)
+})
 
 async function fetchWeatherData(
   city: string,
@@ -38,8 +58,31 @@ async function fetchWeatherData(
   return await response.json()
 }
 
+async function fetchCityData(
+  query: string,
+  limit: number = 5,
+): Promise<CityGeocodingData[]> {
+  const apiUrl = import.meta.env.VITE_API_URL
+  const apiKey = import.meta.env.VITE_API_KEY
+
+  console.log({ apiUrl, apiKey })
+  const response = await fetch(
+    `${apiUrl}/geo/1.0/direct?q=${query},,&limit=${limit}&appid=${apiKey}`,
+  )
+
+  if (!response.ok) {
+    const errorData = await response.json()
+
+    const errorMessage = errorData.message || 'An unknown error occurred'
+    throw new Error(errorMessage)
+  }
+
+  return await response.json()
+}
+
 async function handleSearch() {
   if (!search.value) return
+  cities.value = null
   console.log('search', search.value)
 
   isLoading.value = true
@@ -55,36 +98,40 @@ async function handleSearch() {
       err instanceof Error ? err.message : 'An unknown error occurred'
   } finally {
     isLoading.value = false
+    cities.value = null
   }
 }
 
 async function toggleUnit() {
   isMetric.value = !isMetric.value
-  if (!search.value) return
+  await handleSearch()
+}
 
-  isLoading.value = true
-  weatherData.value = null
-  error.value = null
-  try {
-    const data = await fetchWeatherData(search.value, isMetric.value)
-    console.log({ data })
+async function handleCityChange(city: string) {
+  search.value = city
+  cities.value = null
 
-    weatherData.value = data
-  } catch (err: unknown) {
-    error.value =
-      err instanceof Error ? err.message : 'An unknown error occurred'
-  } finally {
-    isLoading.value = false
-  }
+  await handleSearch()
 }
 </script>
 
 <template>
-  <div class="weather-card">
+  <div class="weather-card no-scrollbar">
     <div class="form-container">
       <form @submit.prevent="handleSearch">
         <div class="search-container">
-          <input type="text" v-model="search" placeholder="Search..." />
+          <label aria-label="search" class="searchbar-wrapper">
+            <input type="text" v-model="search" placeholder="Search..." />
+            <ul v-if="cities" class="search-suggestions">
+              <li
+                v-for="city in cities"
+                :key="`${city.name}`"
+                @click="handleCityChange(city.name)"
+              >
+                {{ city.name }}
+              </li>
+            </ul>
+          </label>
           <button type="submit" class="search-btn" aria-label="Search">
             <IconSearch />
           </button>
@@ -103,6 +150,7 @@ async function toggleUnit() {
         <span>{{ isMetric ? 'Metric' : 'Standard' }}</span>
       </div>
     </div>
+    <EmptyComponent v-if="weatherData === null" />
     <LoadingComponent v-if="isLoading" />
     <WeatherComponent
       v-if="weatherData"
@@ -113,7 +161,7 @@ async function toggleUnit() {
   </div>
 </template>
 
-<style>
+<style scoped>
 .weather-card {
   display: flex;
   flex-direction: column;
@@ -123,7 +171,7 @@ async function toggleUnit() {
   margin-inline: auto;
   border: 1px solid var(--color-primary);
   border-radius: 40px;
-  overflow: scroll;
+  overflow-y: scroll;
 }
 .weather-card > * {
   padding: 20px 20px 30px 20px;
@@ -143,6 +191,32 @@ async function toggleUnit() {
   align-items: center;
   gap: 16px;
   margin-bottom: 16px;
+}
+.searchbar-wrapper {
+  position: relative;
+  width: 100%;
+}
+.search-suggestions {
+  position: absolute;
+  bottom: 0;
+  transform: translateY(105%);
+  border-radius: 8px;
+  left: 0;
+  z-index: 50;
+  width: 100%;
+  background-color: var(--color-background);
+  border: 1px solid var(--color-primary);
+  list-style: none;
+  padding: 8px;
+  margin: 0;
+}
+.search-suggestions li {
+  padding: 4px 8px;
+  margin: 0;
+}
+.search-suggestions li:hover {
+  background-color: hsla(160, 100%, 37%, 0.2);
+  cursor: pointer;
 }
 input {
   width: 100%;
