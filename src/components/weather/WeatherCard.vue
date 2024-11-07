@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import IconSearch from '@/components/icons/IconSearch.vue'
 import type { CityGeocodingData, WeatherData } from '@/types/glogal'
 import ErrorComponent from '@/components/weather/ErrorComponent.vue'
@@ -28,10 +28,30 @@ watch(search, (newValue, oldValue) => {
 
   debounceTimeout.value = window.setTimeout(async () => {
     // Use window.setTimeout
+    sessionStorage.setItem('city', newValue)
     console.log('Search value changed:', newValue) // Log after debounce
     const data = await fetchCityData(newValue)
     cities.value = data
   }, 300)
+})
+
+onMounted(() => {
+  const storedCity = sessionStorage.getItem('city')
+  const storedWeatherData = sessionStorage.getItem('weatherData')
+  const isMetricData = sessionStorage.getItem('isMetric')
+
+  if (isMetricData) {
+    isMetric.value = true
+  }
+
+  if (storedWeatherData) {
+    try {
+      weatherData.value = JSON.parse(storedWeatherData)
+    } catch (err) {
+      console.log({ err })
+      search.value = storedCity
+    }
+  }
 })
 
 async function fetchWeatherData(
@@ -94,6 +114,7 @@ async function handleSearch() {
     console.log({ data })
 
     weatherData.value = data
+    sessionStorage.setItem('weatherData', JSON.stringify(data))
   } catch (err: unknown) {
     error.value =
       err instanceof Error ? err.message : 'An unknown error occurred'
@@ -105,6 +126,11 @@ async function handleSearch() {
 
 async function toggleUnit() {
   isMetric.value = !isMetric.value
+
+  if (isMetric.value) {
+    sessionStorage.setItem('isMetric', 'true')
+  }
+
   await handleSearch()
 }
 
