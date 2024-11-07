@@ -17,14 +17,15 @@ const isMetric = ref<boolean>(false)
 
 const debounceTimeout = ref<number | null>(null)
 
-watch(search, newValue => {
-  cities.value = null
+watch(search, (newValue, oldValue) => {
+  if (oldValue?.toLowerCase() === newValue?.toLowerCase()) return
 
   if (!newValue || newValue.length < 3) return
 
   if (debounceTimeout.value) {
     clearTimeout(debounceTimeout.value) // Clear the previous timeout
   }
+
   debounceTimeout.value = window.setTimeout(async () => {
     // Use window.setTimeout
     console.log('Search value changed:', newValue) // Log after debounce
